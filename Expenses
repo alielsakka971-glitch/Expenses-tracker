@@ -1,0 +1,218 @@
+import json
+import os
+from datetime import date
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+JSON_PATH = os.path.join(BASE_DIR, "expenses.json")
+
+
+def save():
+    with open(JSON_PATH, "w") as file:
+        json.dump({
+            "wallet": wallet,
+            "expenses": expenses
+        }, file, indent=4)
+
+
+def operation():
+    while True:
+        try:
+            x = int(input(
+                "Which operation would you wanna perform \n"
+                "1. Add expense \n"
+                "2. View expenses \n"
+                "3. Statistics \n"
+                "4. Add money to the budget \n"
+                "5. delete an expense \n"
+                "6. Edit an expense \n"
+                "7. search expenses \n"
+                "8. sort expenses \n"
+                "9. exit \n"
+            ))
+            if 1 <= x <= 9:
+                return x
+            else:
+                print("Option doesn't exist. Please enter 1-9.")
+        except ValueError:
+            print("Please enter a number.")
+
+
+x = operation()
+try:
+    with open(JSON_PATH, "r") as file:
+        data = json.load(file)
+        wallet = data["wallet"]
+        expenses = data["expenses"]
+except FileNotFoundError:
+    wallet = 0
+    expenses = []
+except json.JSONDecodeError:
+    print("expenses.json is corrupted or empty. Starting fresh.")
+    wallet = 0
+    expenses = []
+
+while x != 9:
+    if x < 9:
+        print("chosen option: ", x)    # OPTION 1 - Add expense
+        if x == 1:
+            category = input("Enter the category: ")
+            item = input("Enter the item: ")
+            while True:
+                try:
+                    amount = float(input("Enter the amount: "))
+                    if amount > 0:
+                        break
+                    else:
+                        print("Amount must be greater than 0.")
+                except ValueError:
+                    print("Please enter a number.")
+            expenses.append({
+                "category": category,
+                "item": item,
+                "amount": amount,
+                "date": date.today().isoformat()
+            })
+            wallet = wallet - amount
+            save()     # OPTION 2 - View expenses
+        elif x == 2:
+            print("     EXPENSES    ")
+            if not expenses:
+                print("There are no expenses to view.")
+            for number, expense in enumerate(expenses, start=1):
+                print(number, ".", expense["category"])
+                print("   ", expense["item"], "-", expense["amount"], "EGP")
+                print("   Date:", expense["date"])
+        elif x == 3:                                   # OPTION 3 - Statistics
+            spent = 0
+            category_totals = {}
+            for expense in expenses:
+                category = expense["category"]
+                if category in category_totals:
+                    category_totals[category] = (
+                        category_totals[category] + expense["amount"]
+                    )
+                else:
+                    category_totals[category] = expense["amount"]
+            print("wallet: ", wallet)
+            for expense in expenses:
+                spent = spent + expense["amount"]
+            print("spent: ", spent)
+            if expenses:
+                average = spent / len(expenses)
+                print("average expense:", average)
+            print("number of expenses:", len(expenses))
+            if expenses:
+                highest_expense = max(expenses, key=lambda expense: expense["amount"])
+                print(
+                    "highest expense:",
+                    highest_expense["item"],
+                    "-",
+                    highest_expense["amount"], "EGP")
+            for category in category_totals:
+                print(category, ":", category_totals[category])     # OPTION 4 - Add money to budget
+        elif x == 4:
+            while True:
+                try:
+                    budget = float(
+                        input("Enter the amount of money to add to the budget: ")
+                    )
+                    if budget > 0:
+                        break
+                    else:
+                        print("Amount must be greater than 0.")
+                except ValueError:
+                    print("Please enter a number.")
+            wallet = wallet + budget
+            save()
+        elif x == 5:                                             # OPTION 5 - Delete an expense
+            if not expenses:
+                print("There are no expenses to delete.")
+            else:
+                print("     DELETE EXPENSE    ")
+                for number, expense in enumerate(expenses, start=1):
+                    print(number, ".", expense["category"])
+                    print("   ", expense["item"], "-", expense["amount"], "EGP")
+                    print("   Date:", expense["date"])
+                while True:
+                    try:
+                        delete_index = int(input("Enter the number of the expense to delete: "))
+                        if 1 <= delete_index <= len(expenses):
+                            break
+                        else:
+                            print("Invalid option. Please enter a valid number.")
+                    except ValueError:
+                        print("Please enter a number.")
+                deleted_expense = expenses.pop(delete_index - 1)
+                wallet = wallet + deleted_expense["amount"]
+                save()
+        elif x == 6:                                             # OPTION 6 - Edit an expense
+            if not expenses:
+                print("There are no expenses to edit.")
+            else:
+                print("     EDIT EXPENSE    ")
+                for number, expense in enumerate(expenses, start=1):
+                    print(number, ".", expense["category"])
+                    print("   ", expense["item"], "-", expense["amount"], "EGP")
+                    print("   Date:", expense["date"])
+                while True:
+                    try:
+                        edit_index = int(input("Enter the number of the expense to edit: "))
+                        if 1 <= edit_index <= len(expenses):
+                            break
+                        else:
+                            print("Invalid option. Please enter a valid number.")
+                    except ValueError:
+                        print("Please enter a number.")
+                print("Editing expense:", expenses[edit_index - 1]["item"])
+                new_category = input("Enter the new category (or press Enter to keep the same): ")
+                if new_category:
+                    expenses[edit_index - 1]["category"] = new_category
+                new_item = input("Enter the new item name (or press Enter to keep the same): ")
+                if new_item:
+                    expenses[edit_index - 1]["item"] = new_item
+                old_amount = expenses[edit_index - 1]["amount"]
+                new_amount = input("Enter the new amount (or press Enter to keep the same): ")
+                if new_amount:
+                    try:
+                        new_amount = float(new_amount)
+                        if new_amount > 0:
+                            wallet = wallet + old_amount
+                            wallet = wallet - new_amount
+                            expenses[edit_index - 1]["amount"] = new_amount
+                        else:
+                            print("Amount must be greater than 0.")
+                    except ValueError:
+                        print("Invalid amount. Please enter a valid number.")
+                new_date = input("Enter the new date (or press Enter to keep the same): ")
+                if new_date:
+                    expenses[edit_index - 1]["date"] = new_date
+                save()
+        elif x == 7:                                             # OPTION 7 - Search expenses
+            if not expenses:
+                print("There are no expenses to search.")
+            else:
+                search_term = input("Enter the category or item to search for: ").lower()
+                found_expenses = [
+                    expense for expense in expenses
+                    if search_term in expense["category"].lower() or search_term in expense["item"].lower()
+                ]
+                if found_expenses:
+                    print("     SEARCH RESULTS    ")
+                    for number, expense in enumerate(found_expenses, start=1):
+                        print(number, ".", expense["category"])
+                        print("   ", expense["item"], "-", expense["amount"], "EGP")
+                        print("   Date:", expense["date"])
+                else:
+                    print("No expenses found matching the search term.")
+        elif x == 8:                                             # OPTION 8 - Sort expenses
+            if not expenses:
+                print("There are no expenses to sort.")
+            else:
+                sort_by = input("Enter the criterion to sort by (category, item, amount, date): ").lower()
+                if sort_by in ["category", "item", "amount", "date"]:
+                    expenses.sort(key=lambda e: e[sort_by])
+                    print("Expenses sorted by", sort_by)
+                else:
+                    print("Invalid criterion. Please enter category, item, amount, or date.")
+        x = operation()
+print("Exiting the program.")
