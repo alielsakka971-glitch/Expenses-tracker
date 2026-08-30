@@ -1,0 +1,135 @@
+import json
+import os
+import pandas as pd
+import matplotlib.pyplot as plt
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+JSON_PATH = os.path.join(BASE_DIR, "expenses.json")
+EXCEL_PATH = os.path.join(BASE_DIR, "expenses.xlsx")
+
+try:
+    with open(JSON_PATH, "r") as file:
+        data = json.load(file)
+except FileNotFoundError:
+    print("expenses.json not found. Run the tracker and add an expense first.")
+    raise SystemExit
+except json.JSONDecodeError:
+    print("expenses.json is corrupted or empty.")
+    raise SystemExit
+
+expenses = data["expenses"]
+
+if not expenses:
+    print("No expenses recorded yet. Add some expenses first.")
+    raise SystemExit
+
+df = pd.DataFrame(expenses)
+
+df["date"] = pd.to_datetime(df["date"], errors="coerce")
+
+if df["date"].isna().any():
+    print("Warning: some dates could not be parsed and were treated as missing.")
+
+# Display all expenses
+print("ALL EXPENSES:")
+print(df)
+
+# Total spent
+total_spent = df["amount"].sum()
+print("\nTotal spent:", total_spent, "EGP")
+
+# Number of expenses
+number_of_expenses = df["amount"].count()
+print("Number of expenses:", number_of_expenses)
+
+# Average expense
+average_expense = df["amount"].mean()
+print("Average expense:", average_expense, "EGP")
+
+# Highest expense
+highest_expense = df.loc[df["amount"].idxmax()]
+print(
+    "\nHighest expense:",
+    highest_expense["item"],
+    "-",
+    highest_expense["amount"],
+    "EGP"
+)
+
+# Lowest expense
+lowest_expense = df.loc[df["amount"].idxmin()]
+print(
+    "Lowest expense:",
+    lowest_expense["item"],
+    "-",
+    lowest_expense["amount"],
+    "EGP"
+)
+
+# Spending by category
+category_totals = df.groupby("category")["amount"].sum()
+print("\nSpending by category:")
+print(category_totals)
+
+# Category highest spending
+highest_category = category_totals.idxmax()
+highest_category_amount = category_totals.max()
+print(
+    "\nCategory you spent the most on:",
+    highest_category,
+    "-",
+    highest_category_amount,
+    "EGP"
+)
+
+# Sort  by amount
+sorted_expenses = df.sort_values(by="amount", ascending=False)
+print("\nEXPENSES SORTED BY AMOUNT:")
+print(sorted_expenses)
+
+# Filter by category
+category_to_search = input("\nEnter a category to filter by: ").lower()
+filtered_category = df[df["category"].str.lower() == category_to_search]
+print("\nEXPENSES IN THIS CATEGORY:")
+if filtered_category.empty:
+    print("No expenses found in that category.")
+else:
+    print(filtered_category)
+
+
+# Filtering  by date
+date_input = input("\nEnter a date to filter by (YYYY-MM-DD): ")
+date_to_search = pd.to_datetime(date_input, errors="coerce")
+
+if pd.isna(date_to_search):
+    print("Invalid date format entered. Skipping date filter.")
+    filtered_date = df.iloc[0:0] 
+else:
+    filtered_date = df[df["date"] == date_to_search]
+
+print("\nEXPENSES ON THIS DATE:")
+if filtered_date.empty:
+    print("No expenses found on that date.")
+else:
+    print(filtered_date)
+
+# Spending per day
+spending_per_day = df.groupby("date")["amount"].sum()
+print("\nSPENDING PER DAY:")
+print(spending_per_day)
+
+
+# Graph: Spending by category
+print("\nSPENDING BY CATEGORY GRAPH:")
+category_totals.plot(kind="bar")
+plt.title("Spending by Category")
+plt.xlabel("Category")
+plt.ylabel("Amount Spent (EGP)")
+plt.tight_layout()
+plt.show()
+# Export to Excel
+try:
+    df.to_excel(EXCEL_PATH, index=False)
+    print("\nData exported to", EXCEL_PATH)
+except ModuleNotFoundError:
+    print("\nCould not export to Excel: install 'openpyxl' (pip install openpyxl) and rerun.")
